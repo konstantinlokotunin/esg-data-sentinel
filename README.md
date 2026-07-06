@@ -2,115 +2,79 @@
 
 Ein Machine-Learning-Projekt zur Erkennung potenzieller Datenqualitätsrisiken in österreichischen industriellen Emissionsdaten.
 
-Das Projekt ist als einfache modulare Datenpipeline aufgebaut:
+---
 
-Datenimport → Transformation → Feature Engineering → Anomaly Detection → Evaluation & Interpretation
+## 📌 Übersicht & Zielsetzung
+
+Das Projekt identifiziert auffällige Datenpunkte (Red Flags) in öffentlich berichteten Emissionsdaten österreichischer Industrieanlagen. Es dient als Vorstufe zur ESG-Datenvalidierung, beispielsweise im Rahmen von *Limited Assurance Engagements*.
+
+### Erkannte Anomalietypen
+* **Numerische Fehler:** Negative Werte oder extreme Ausreißer.
+* **Metrische Fehler:** Mögliche Skalierungs- und Einheitenfehler.
+* **Temporale Fehler:** Extreme Year-over-Year-Veränderungen (Vorjahresvergleich).
+* **Kontextuelle Fehler:** Sektor- oder schadstoffspezifische Abweichungen.
 
 ---
 
-## Projektidee
+## 🤖 Machine Learning Ansatz
 
-Ziel des Projekts ist es, potenzielle Datenqualitätsrisiken in berichteten Emissionsdaten österreichischer Industrieanlagen zu erkennen.
+Da verlässliche Fehlerlabels fehlen, nutzt das Projekt ein **unüberwachtes Verfahren (Unsupervised Learning)**.
 
-Dafür werden reale österreichische Emissionsdaten verwendet und ein **unsupervised Anomaly-Detection-Modell mit IsolationForest** trainiert.
+* **Algorithmus:** `IsolationForest`
+* **Vorteil:** Benötigt keine gelabelten Trainingsdaten; isoliert Anomalien basierend auf numerischen Mustern.
+* **Klassifikation:**
+  * `1` (Normal) ➔ Unauffälliger Datenpunkt.
+  * `-1` (Anomalie) ➔ Potenziell prüfungswürdiger Datenpunkt / Red Flag.
 
-Das Modell soll auffällige Datenpunkte identifizieren, zum Beispiel:
-
-- negative Emissionswerte
-- ungewöhnlich große oder kleine Werte
-- mögliche Skalierungs- bzw. Einheitenfehler
-- extreme Year-over-Year-Veränderungen
-- sektor- oder schadstoffspezifische Ausreißer
-
-Das Modell klassifiziert die Daten nicht auf Basis echter Fehlerlabels, sondern markiert ungewöhnliche Datenpunkte als potenzielle Red Flags.
+> 💡 **Methodischer Hinweis:** Fehlende Werte (*Missing Values*) werden vorab deterministisch via Pandas in der Transformationsphase bereinigt. Das ML-Modell fokussiert sich rein auf komplexe, nicht-regelbasierte Musterabweichungen.
 
 ---
 
-## Machine-Learning-Ansatz
+## 📊 Datenbasis & Scope
 
-Da öffentlich verfügbare Energie- und Emissionsdatensätze jedoch in der Regel keine verlässlichen Labels für fehlerhafte Datenpunkte enthalten, wird ein **unüberwachtes Anomalieerkennungsverfahren** verwendet.
+Die Daten stammen aus dem **European Industrial Emissions Portal** mit folgendem Fokus:
 
-Der gewählte Algorithmus ist:
-
-**IsolationForest**
-
-IsolationForest eignet sich für dieses Projekt, weil das Modell keine gelabelten Trainingsdaten benötigt. Es lernt aus den vorhandenen numerischen Datenmustern, welche Beobachtungen ungewöhnlich erscheinen.
-
-Die Ergebnisse werden als Review-Hinweise interpretiert:
-
-- `normal = unauffälliger Datenpunkt`
-- `anomaly = potenziell prüfungswürdiger Datenpunkt / Red Fla`
-
-Wichtig: Das Modell erkennt keine rechtlich oder fachlich endgültig bestätigten Fehler. Es identifiziert Datenpunkte, die im Rahmen einer ESG-Datenvalidierung z.B. im Rahmen von Limited Assurance Engagements näher geprüft werden sollten.
+* **Geografie:** Österreich (AT)
+* **Datentyp:** Industrielle Emissionsdaten (tabellarisch)
+* **Scope:** Fokus auf Datenintegrität und Qualitätssicherung
 
 ---
 
-## Datenquelle
-
-Das Projekt verwendet industrielle Emissionsdaten aus dem European Industrial Emissions Portal.
-
-Der Projektumfang ist bewusst eingeschränkt auf:
-
-- Land: Österreich
-- Datenart: industrielle Emissionsdaten
-- Datenformat: tabellarische Daten
-- Analysefokus: potenzielle Datenqualitätsrisiken
-- ML-Aufgabe: unsupervised anomaly detection
-
----
-
-## Methodischer Hinweis
-
-Fehlende Werte werden nicht mit dem Machine-Learning-Modell erkannt. Sie werden bereits im Transformationsschritt mit Pandas geprüft, zum Beispiel über Missing-Value-Checks.
-
-Das IsolationForest-Modell wird stattdessen für Auffälligkeiten verwendet, die nicht immer durch einfache Regeln erkennbar sind, zum Beispiel:
-
-- ungewöhnlich hohe oder niedrige Emissionswerte
-- mögliche Skalierungsfehler
-- extreme Veränderungen gegenüber dem Vorjahr
-- Ausreißer innerhalb bestimmter Sektoren oder Schadstoffgruppen
-
----
-
-## Projektstruktur
+## 📂 Projektstruktur
 
 ```text
 esg-data-sentinel-austria/
-│
 ├── data/
-│   ├── raw/
-│   ├── interim/
-│   └── processed/
-│
-├── notebooks/
-│
+│   ├── raw/                 # Unveränderte Originaldaten
+│   ├── interim/             # Bereinigte Zwischenstände
+│   └── processed/           # Modellbereite Feature-Matrizen
+├── notebooks/               # Explorative Analysen (EDA)
 ├── outputs/
-│   ├── figures/
-│   └── models/
-│
+│   ├── figures/             # Evaluierungs-Plots
+│   └── models/              # Serialisierte IsolationForest-Modelle
 ├── src/
-│   ├── extract.py
-│   ├── transform.py
-│   ├── inject_errors.py
-│   ├── train_model.py
-│   ├── evaluate_model.py
-│   └── visualization.py
-│
-├── app.py
-├── run_pipeline.py
-├── requirements.txt
-└── README.md
+│   ├── extract.py           # Daten-Ingestion
+│   ├── transform.py         # Vorverarbeitung & Missing-Value-Checks
+│   ├── inject_errors.py     # Synthetische Fehlereinspeisung zu Testzwecken
+│   ├── train_model.py       # IsolationForest Training
+│   ├── evaluate_model.py    # Performance-Metrizen
+│   └── visualization.py     # Plotting-Funktionen
+├── app.py                   # UI / Dashboard (optional)
+├── run_pipeline.py          # Zentrales Orchestrierungs-Skript
+├── requirements.txt         # Python-Abhängigkeiten
+└── README.md                # Dokumentation
+```
 
 ---
 
-## Installation
+## ⚡ Installation & Ausführung
 
+### 1. Abhängigkeiten installieren
 ```bash
 pip install -r requirements.txt
+```
 
----
-
-## Ausführung
-
+### 2. Pipeline starten
 ```bash
 python run_pipeline.py
+```
