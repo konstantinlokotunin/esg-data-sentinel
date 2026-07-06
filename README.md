@@ -1,54 +1,79 @@
 # ESG Data Sentinel Austria
 
-A machine-learning project for detecting potential data quality risks in Austrian industrial emissions data.
+Ein Machine-Learning-Projekt zur Erkennung potenzieller Datenqualitätsrisiken in österreichischen industriellen Emissionsdaten.
 
-This project is built as a simple modular data pipeline:
+Das Projekt ist als einfache modulare Datenpipeline aufgebaut:
 
-Data Ingestion → Transformation → Synthetic Error Injection → Model Training → Evaluation
-
----
-
-## Project Idea
-
-The goal of this project is to build a neural network classification model that identifies potential data quality risks in ESG-related emissions data.
-
-The model will classify data rows as:
-
-- `0 = plausible`
-- `1 = data quality risk / red flag`
+Datenimport → Transformation → Feature Engineering → Anomaly Detection → Evaluation & Interpretation
 
 ---
 
-## Data Source
+## Projektidee
 
-The project uses industrial emissions data from the European Industrial Emissions Portal.
+Ziel des Projekts ist es, potenzielle Datenqualitätsrisiken in berichteten Emissionsdaten österreichischer Industrieanlagen zu erkennen.
 
-The project scope is limited to:
+Dafür werden reale österreichische Emissionsdaten verwendet und ein **unsupervised Anomaly-Detection-Modell mit IsolationForest** trainiert.
 
-- Country: Austria
-- Data type: industrial emissions data
-- Data format: tabular data
-- ML task: binary classification
+Das Modell soll auffällige Datenpunkte identifizieren, zum Beispiel:
 
----
+- negative Emissionswerte
+- ungewöhnlich große oder kleine Werte
+- mögliche Skalierungs- bzw. Einheitenfehler
+- extreme Year-over-Year-Veränderungen
+- sektor- oder schadstoffspezifische Ausreißer
 
-## Methodological Note
-
-Public ESG and emissions datasets usually do not contain reliable labels for incorrect or faulty data points.
-
-Therefore, this project uses real emissions data as a basis and later creates synthetic data quality issues, such as:
-
-- missing values
-- negative values
-- scaling errors
-- extreme year-over-year changes
-- sector-specific outliers
-
-The model does not detect legally confirmed errors. It detects data rows that should be reviewed.
+Das Modell klassifiziert die Daten nicht auf Basis echter Fehlerlabels, sondern markiert ungewöhnliche Datenpunkte als potenzielle Red Flags.
 
 ---
 
-## Project Structure
+## Machine-Learning-Ansatz
+
+Da öffentlich verfügbare Energie- und Emissionsdatensätze jedoch in der Regel keine verlässlichen Labels für fehlerhafte Datenpunkte enthalten, wird ein **unüberwachtes Anomalieerkennungsverfahren** verwendet.
+
+Der gewählte Algorithmus ist:
+
+```text
+IsolationForest
+
+IsolationForest eignet sich für dieses Projekt, weil das Modell keine gelabelten Trainingsdaten benötigt. Es lernt aus den vorhandenen numerischen Datenmustern, welche Beobachtungen ungewöhnlich erscheinen.
+
+Die Ergebnisse werden als Review-Hinweise interpretiert:
+
+- `normal = unauffälliger Datenpunkt`
+- `anomaly = potenziell prüfungswürdiger Datenpunkt / Red Fla`
+
+Wichtig: Das Modell erkennt keine rechtlich oder fachlich endgültig bestätigten Fehler. Es identifiziert Datenpunkte, die im Rahmen einer ESG-Datenvalidierung z.B. im Rahmen von Limited Assurance Engagements näher geprüft werden sollten.
+
+---
+
+## Datenquelle
+
+Das Projekt verwendet industrielle Emissionsdaten aus dem European Industrial Emissions Portal.
+
+Der Projektumfang ist bewusst eingeschränkt auf:
+
+- Land: Österreich
+- Datenart: industrielle Emissionsdaten
+- Datenformat: tabellarische Daten
+- Analysefokus: potenzielle Datenqualitätsrisiken
+- ML-Aufgabe: unsupervised anomaly detection
+
+---
+
+## Methodischer Hinweis
+
+Fehlende Werte werden nicht mit dem Machine-Learning-Modell erkannt. Sie werden bereits im Transformationsschritt mit Pandas geprüft, zum Beispiel über Missing-Value-Checks.
+
+Das IsolationForest-Modell wird stattdessen für Auffälligkeiten verwendet, die nicht immer durch einfache Regeln erkennbar sind, zum Beispiel:
+
+- ungewöhnlich hohe oder niedrige Emissionswerte
+- mögliche Skalierungsfehler
+- extreme Veränderungen gegenüber dem Vorjahr
+- Ausreißer innerhalb bestimmter Sektoren oder Schadstoffgruppen
+
+---
+
+## Projektstruktur
 
 ```text
 esg-data-sentinel-austria/
@@ -76,3 +101,17 @@ esg-data-sentinel-austria/
 ├── run_pipeline.py
 ├── requirements.txt
 └── README.md
+
+---
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+
+---
+
+## Ausführung
+
+```bash
+python run_pipeline.py
