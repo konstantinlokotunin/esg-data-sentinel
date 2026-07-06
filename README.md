@@ -32,8 +32,7 @@ Da öffentlich verfügbare Energie- und Emissionsdatensätze jedoch in der Regel
 
 Der gewählte Algorithmus ist:
 
-```text
-IsolationForest
+**IsolationForest**
 
 IsolationForest eignet sich für dieses Projekt, weil das Modell keine gelabelten Trainingsdaten benötigt. Es lernt aus den vorhandenen numerischen Datenmustern, welche Beobachtungen ungewöhnlich erscheinen.
 
