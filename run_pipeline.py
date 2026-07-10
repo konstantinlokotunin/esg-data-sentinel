@@ -26,7 +26,7 @@ def main():
     print("\nColumn names:")
     print(df.columns.tolist())
 
-    print(missing_report)
+    missing_report(df)
 
     df = add_pollutant_groups(df)
     df = add_features_for_isolation_forest(df)

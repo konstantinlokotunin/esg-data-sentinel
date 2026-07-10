@@ -4,6 +4,7 @@ from pathlib import Path
 file_path = r"C:\Users\konst\Documents\Python Projects\ESG Data Sentinel\esg-data-sentinel\outputs"
 
 OUTPUT_DIR = Path(file_path)
+output_path = OUTPUT_DIR / "anomaly_reports.xlsx"
 
 def create_anomaly_summary(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -92,15 +93,12 @@ def save_anomaly_reports(df: pd.DataFrame):
     group_report = anomalies_by_pollutant_group(df)
     sector_group_report = anomalies_by_sector_and_pollutant_group(df)
 
-    summary.to_csv(OUTPUT_DIR / "anomaly_summary.csv", sep=";", index=False)
-    top_anomalies.to_csv(OUTPUT_DIR / "top_anomalies.csv", sep=";", index=False)
-    sector_report.to_csv(OUTPUT_DIR / "anomalies_by_sector.csv", sep=";", index=False)
-    group_report.to_csv(OUTPUT_DIR / "anomalies_by_pollutant_group.csv", sep=";", index=False)
-    sector_group_report.to_csv(OUTPUT_DIR / "anomalies_by_sector_and_pollutant_group.csv", sep=";", index=False)
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        summary.to_excel(writer, sheet_name="Summary", index=False)
+        top_anomalies.to_excel(writer, sheet_name="Top_Anomalies", index=False)
+        sector_report.to_excel(writer, sheet_name="By_Sector", index=False)
+        group_report.to_excel(writer, sheet_name="By_Group", index=False)
+        sector_group_report.to_excel(writer, sheet_name="By_Sector_&_Group", index=False)
 
-    print("Saved anomaly reports:")
-    print("-", OUTPUT_DIR / "anomaly_summary.csv")
-    print("-", OUTPUT_DIR / "top_anomalies.csv")
-    print("-", OUTPUT_DIR / "anomalies_by_sector.csv")
-    print("-", OUTPUT_DIR / "anomalies_by_pollutant_group.csv")
-    print("-", OUTPUT_DIR / "anomalies_by_sector_and_pollutant_group.csv")
+    print("Saved Excel report:")
+    print("-", output_path)

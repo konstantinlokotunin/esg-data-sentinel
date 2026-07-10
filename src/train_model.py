@@ -45,9 +45,8 @@ def train_isolation_forest(df, X: pd.DataFrame) -> pd.DataFrame:
         -1: 1
     })
     df["Anomaly_Score"] = model.decision_function(X_test)
-    df["Anomaly_Score"] = round(df["Anomaly_Score"], 4)
 
-    print("Anomaly detection completed.")
+    print("\nAnomaly detection completed.")
     print("Detected anomalies:", df["Is_Anomaly"].sum())
     print("Anomaly rate:", round(df["Is_Anomaly"].mean() * 100, 2), "%")
 

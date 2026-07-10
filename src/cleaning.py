@@ -1,13 +1,21 @@
 import pandas as pd
+from pathlib import Path
 
-def missing_report(df: pd.DataFrame) -> pd.DataFrame:
+file_path = r"C:\Users\konst\Documents\Python Projects\ESG Data Sentinel\esg-data-sentinel\outputs"
+
+OUTPUT_DIR = Path(file_path)
+output_path = OUTPUT_DIR / "anomaly_reports.xlsx"
+
+def missing_report(df: pd.DataFrame):
 
     missing_report = pd.DataFrame({
         "missing_values": df.isna().sum(),
         "missing_percent": df.isna().mean() * 100
-    }).sort_values("missing_values", ascending=False)
+    }, index=[0]).sort_values("missing_values", ascending=False)
 
-    return missing_report
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        missing_report.to_excel(writer, sheet_name="Missing_Report", index=False)
+
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Select all relevant columns, format datatypes, and filter by target region."""
