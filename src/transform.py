@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 def add_pollutant_groups(df: pd.DataFrame) -> pd.DataFrame:
     """Klassifiziert Schadstoffe in logische, aggregierbare Gruppen
@@ -103,11 +104,47 @@ def add_features_for_isolation_forest(df: pd.DataFrame) -> pd.DataFrame:
     """Calculates statistical and contextual features specialized for
     Isolation Forest anomaly tracking.
     """
-    # Example feature engineering implementation
-    df["Amount_Log"] = df["Amount"].apply(lambda x: pd.np.log1p(x) if x > 0 else 0)
     
-    # Calculate group-level deviation metrics
-    group_means = df.groupby("Pollutant_Group")["Amount"].transform("mean")
-    df["Dev_From_Group_Mean"] = df["Amount"] - group_means
+    # 1. Rule-based flag for impossible / suspicious values
+    df["Is_Negative"] = df["Amount"] < 0
+
+    # 2. Log transformation
+    # Negative values cannot be log-transformed.
+    # They are kept visible through Is_Negative.
+    df.loc[df["Amount"] < 0, "Amount"] = df["Amount"].median()
+
+    df["Amount_Log"] = np.log1p(df["Amount"])
+    df["Amount_Log"] = round(df["Amount_Log"], 4)
     
+    # 3. Deviation from pollutant group median
+    df["Group_Median"] = df.groupby("Pollutant_Group")["Amount_Log"].transform("median")
+    df["Dev_from_Group_Median"] = (df["Amount_Log"] - df["Group_Median"])
+    df["Dev_from_Group_Median"] = round(df["Dev_from_Group_Median"], 4)
+
+    # 4. Deviation from sector median
+    df["Sector_Median"] = df.groupby("Sector")["Amount_Log"].transform("median")
+    df["Dev_from_Sector_Median"] = (df["Amount_Log"] - df["Sector_Median"])
+    df["Dev_from_Sector_Median"] = round(df["Dev_from_Sector_Median"], 4)
+
+    # 5. Deviation from sector + pollutant group median
+    df["Sector_Group_Median"] = df.groupby(
+        ["Sector", "Pollutant_Group"])["Amount_Log"].transform("median")
+    df["Dev_from_Sector_Group_Median"] = (df["Amount_Log"] - df["Sector_Group_Median"])
+    df["Dev_from_Sector_Group_Median"] = round(df["Dev_from_Sector_Group_Median"], 4)
+
+    # 6. Year-over-year change
+    df = df.sort_values(["Facility", "Pollutant", "Year"])
+
+    df["Previous_Year_Amount"] = (
+        df.groupby(["Facility", "Pollutant"])["Amount_Log"]
+        .shift(1)
+    )
+
+    df["YoY_Change_Pct"] = (
+        (df["Amount_Log"] - df["Previous_Year_Amount"])
+        / df["Previous_Year_Amount"]
+    ) * 100
+    df["YoY_Change_Pct"] = round(df["YoY_Change_Pct"], 4)
+
     return df
+

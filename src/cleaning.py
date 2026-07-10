@@ -1,6 +1,15 @@
 import pandas as pd
 
-def filter_relevant_columns(df: pd.DataFrame) -> pd.DataFrame:
+def missing_report(df: pd.DataFrame) -> pd.DataFrame:
+
+    missing_report = pd.DataFrame({
+        "missing_values": df.isna().sum(),
+        "missing_percent": df.isna().mean() * 100
+    }).sort_values("missing_values", ascending=False)
+
+    return missing_report
+
+def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Select all relevant columns, format datatypes, and filter by target region."""
     columns_to_keep = {
         "countryName": "Country",
@@ -19,18 +28,17 @@ def filter_relevant_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.rename(columns=columns_to_keep)
 
     # 3. Handle numeric values safely
-    df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
     df["Amount"] = pd.to_numeric(df["Amount"], errors="coerce")
 
-
     # 4. Convert remaining columns safely to string type
-    string_cols = ["Country", "Code", "Sector", "Facility", "Pollutant"]
-    df[string_cols] = (
-        df[string_cols].astype(str).apply(lambda x: x.str.strip().fillna("Unknown"))
-    )
+    cat_cols = ["Country", "Year", "Code", "Sector", "Facility", "Pollutant"]
+    df[cat_cols] = df[cat_cols].astype(str).apply(lambda x: x.str.strip().replace(
+        {"nan": "Unknown", "": "Unknown"}))
 
     # 5. Clean missing records and restrict spatial scope to Austria
-    df = df.dropna(subset=["Year", "Amount"])
+    df = df.dropna(subset=["Amount"])
     df = df[df["Country"] == "Austria"].copy()
 
+    print("Data cleaned successfully.")
+    print("Shape:", df.shape)
     return df
