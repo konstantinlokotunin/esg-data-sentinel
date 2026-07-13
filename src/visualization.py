@@ -1,3 +1,9 @@
+"""
+visualization.py
+Kapselt die Generierung von Kontrollplots für die Bonus-Anforderungen.
+Trennt die reine Plot-Erstellung strikt von den Datei-Schreiboperationen (I/O).
+"""
+
 import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
