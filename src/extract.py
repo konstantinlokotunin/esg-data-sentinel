@@ -61,7 +61,7 @@ def read_csv_in_chunks(file_path: Path, chunk_size: int = 1) -> Generator[pd.Dat
                 chunks.append(chunk)
             
             except DataValidationError as e:
-                # Protokollieren statt abbrechen – erfüllt Anforderung 6 zu 100%
+                # Datenschonendes Logging
                 logger.warning(f"Datensatz übersprungen: {str(e)}")
                 continue
         
