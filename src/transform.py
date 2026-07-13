@@ -1,10 +1,22 @@
+"""
+transform.py
+Kapselt die Feature-Engineering-Logik für das Isolation-Forest-Modell.
+Sichert mathematische Grenzfälle (Division durch Null, Logarithmen von Negativwerten) ab.
+"""
+
+import logging
 import pandas as pd
 import numpy as np
 
+# Logger für das einheitliche und übersichtliche Protokollieren kritischer Validierungsfehler
+logger = logging.getLogger(__name__)
+
 def add_pollutant_groups(df: pd.DataFrame) -> pd.DataFrame:
-    """Klassifiziert Schadstoffe in logische, aggregierbare Gruppen
+    """
+    Klassifiziert Schadstoffe in logische, aggregierbare Gruppen
     für die kontextuelle ML-Analyse.
     """
+
     risk_groups = {
         "Critical Risk - Immediate Toxicity & Severe Health Damage": [
             "Arsenic and compounds (as As)",
@@ -86,7 +98,7 @@ def add_pollutant_groups(df: pd.DataFrame) -> pd.DataFrame:
         ],
     }
 
-    # Turn the group dictionary into a flat lookup table
+    # Dictionary flachklopfen für schnelles Mapping
     risk_lookup = {
         substance: risk_level
         for risk_level, substances in risk_groups.items()
@@ -97,38 +109,35 @@ def add_pollutant_groups(df: pd.DataFrame) -> pd.DataFrame:
     df["Pollutant_Group"] = (
         df["Pollutant"].map(risk_lookup).fillna("Unclassified")
     )
-
     return df
 
 def add_features_for_isolation_forest(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculates statistical and contextual features specialized for
-    Isolation Forest anomaly tracking.
+    """
+    Berechnet statistische und kontextuelle Features für den Isolation Forest.
+    Sichert Ausreißer und mathematische Unendlichkeiten (inf) ab.
     """
     
-    # 1. Rule-based flag for impossible / suspicious values
+    # 1. Flag für unplausible/negative Werte setzen
     df["Is_Negative"] = df["Amount"] < 0
 
-    # 2. Log transformation
-    # Negative values cannot be log-transformed.
-    # They are kept visible through Is_Negative.
-    df.loc[df["Amount"] < 0, "Amount"] = df["Amount"].median()
-
-    df["Amount_Log"] = np.log1p(df["Amount"])
+    # 2. Log-Transformation mathematisch absichern
+    safe_amount = df["Amount"].clip(lower=0)
+    df["Amount_Log"] = np.log1p(safe_amount)
     
-    # 3. Deviation from pollutant group median
+    # 3. Gruppen-Mediane berechnen (Kontextuelle Abweichungen)
     df["Group_Median"] = df.groupby("Pollutant_Group")["Amount_Log"].transform("median")
     df["Dev_from_Group_Median"] = (df["Amount_Log"] - df["Group_Median"])
 
-    # 4. Deviation from sector median
+    # 4. Sektoren-Mediane berechnen
     df["Sector_Median"] = df.groupby("Sector")["Amount_Log"].transform("median")
     df["Dev_from_Sector_Median"] = (df["Amount_Log"] - df["Sector_Median"])
 
-    # 5. Deviation from sector + pollutant group median
+    # 5. Kombinierte Mediane berechnen
     df["Sector_Group_Median"] = df.groupby(
         ["Sector", "Pollutant_Group"])["Amount_Log"].transform("median")
     df["Dev_from_Sector_Group_Median"] = (df["Amount_Log"] - df["Sector_Group_Median"])
 
-    # 6. Year-over-year change
+    # 6. Year-over-Year (YoY) Änderungen zeitlich korrekt berechnen
     df = df.sort_values(["Facility", "Pollutant", "Year"])
 
     df["Previous_Year_Amount"] = (
@@ -141,5 +150,13 @@ def add_features_for_isolation_forest(df: pd.DataFrame) -> pd.DataFrame:
         / df["Previous_Year_Amount"]
     ) * 100
 
-    return df
+    # Mathematischer Guardrail: Bereinigung aller unendlichen Werte (inf) und NaNs, die das ML-Modell zum Absturz bringen
+    # Wenn Previous_Year_Amount <= 0 oder NaN ist, setzen wir die prozentuale Änderung auf 0.0
+    df["YoY_Change_Pct"] = (
+        (df["Amount"] - df["Previous_Year_Amount"])
+        / df["Previous_Year_Amount"]
+    ) * 100
+    df["YoY_Change_Pct"] = df["YoY_Change_Pct"].replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
+    logger.info(f"Feature Engineering abgeschlossen. Neue Spaltenanzahl: {df.shape[1]}")
+    return df

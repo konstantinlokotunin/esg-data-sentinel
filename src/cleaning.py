@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 from errors import EmptyDatasetError
 
-# Logger für das einheitliche und übersichtliche Protokollieren ungültiger Zeilen
+# Logger für das einheitliche und übersichtliche Protokollieren kritischer Validierungsfehler
 logger = logging.getLogger(__name__)
 
 file_path = r"C:\Users\konst\Documents\Python Projects\ESG Data Sentinel\esg-data-sentinel\outputs"
