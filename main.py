@@ -14,9 +14,15 @@ from src.ml.train_model import prepare_model_data, train_isolation_forest
 from src.ml.evaluate_model import generate_and_save_excel_report
 from src.ml.visualization import generate_and_save_all_plots
 
+# Root-Logging konfigurieren
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("ESG_Sentinel_Core")
+
 def main():
-    # Logger für das einheitliche und übersichtliche Protokollieren
-    logger = logging.getLogger("ESG_Sentinel_Core")
 
     # Dynamische Pfadauflösung relativ zur Projektwurzel
     base_dir = Path(__file__).parent
@@ -37,26 +43,19 @@ def main():
         logger.info(f"Rohdaten erfolgreich geladen. Dimensionen: {df_raw.shape}")
 
         # --- PHASE 2: CLEANING & MISSING REPORT ---
-        logger.info("""
-                Schritt 2: Analysiere Datenqualität, filtriere und bereinige Datensätze,
-                erstelle eine Übersicht der fehlenden Werte...
-                """)
+        logger.info("Schritt 2: Führe eine Filterung und Bereinigung der Datensätze durch und erstelle eine Übersicht der fehlenden Werte...")
         missing_report = generate_missing_report(df_raw)
         df_cleaned = clean_data(df_raw)
-        logger.info(f"Daten erfolgreich bereinigt. Neue Shape: {df_cleaned.shape}")
+        logger.info(f"Daten erfolgreich bereinigt. Dimensionen: {df_cleaned.shape}")
 
         # --- PHASE 3: FEATURE ENGINEERING ---
-        logger.info("""
-                Schritt 3: Führe Schadstoff-Klassifizierung und Feature Engineering durch...
-                """)
+        logger.info("Schritt 3: Führe Schadstoff-Klassifizierung und Feature Engineering durch...")
         df_grouped = add_pollutant_groups(df_cleaned)
         df_features = add_features_for_isolation_forest(df_grouped)
-        logger.info(f"Schadstoff-Klassifizierung und Feature Engineering abgeschlossen. Neue Spaltenanzahl: {df_features.shape[1]}")
+        logger.info(f"Schadstoff-Klassifizierung und Feature Engineering abgeschlossen. Dimensionen: {df_features.shape}")
 
         # --- PHASE 4: MACHINE LEARNING TRAINING ---
-        logger.info("""
-                Schritt 4: Extrahiere numerische Matrix und trainiere Isolation Forest...
-                """)
+        logger.info("Schritt 4: Extrahiere numerische Matrix und trainiere Isolation Forest...")
         X_matrix = prepare_model_data(df_features)  
         # Das Modell wird trainiert und gibt die Ergebnisse sowie die Modell-Objekte zurück                       
         df_results, trained_scaler, trained_model = train_isolation_forest(
@@ -65,17 +64,16 @@ def main():
             contamination=0.05
             )
         logger.info("Modelltraining abgeschlossen.")
-        logger.info(f"""Erkannte Anomalien: {df_results["Is_Anomaly"].sum()} von
-                    {len(df_results)} Datensätzen ({df_results["Is_Anomaly"].mean() * 100:.2f}%)""")
+        logger.info(f"Erkannte Anomalien: {df_results["Is_Anomaly"].sum()} von {len(df_results)} Datensätzen ({df_results["Is_Anomaly"].mean() * 100:.1f}%)")
     
         # --- PHASE 5: EVALUATION & EXCEL-REPORTING ---
-        logger.info("Schritt 6: Schritt 5: Generiere konsolidierten Multi-Sheet Excel-Report...")
+        logger.info("Schritt 5: Generiere konsolidierten Multi-Sheet Excel-Report...")
         generate_and_save_excel_report(
             df= df_results,
             output_path=output_excel,
             df_missing_report=missing_report
         )
-        logger.info(f"Multi-Sheet Excel-Bericht erfolgreich exportiert nach: {output_excel}")
+        logger.info(f"Multi-Sheet Excel-Bericht erfolgreich exportiert nach: \"{output_excel}\".")
 
         # --- PHASE 6: VISUALIZATIONS ---
         logger.info("Schritt 6: Erzeuge explorative Analyseplots...")
@@ -83,9 +81,9 @@ def main():
                 df=df_results, 
                 output_dir=output_figures
             )
-        logger.info(f"Grafiken erfolgreich exportiert nach: {output_figures}")
+        logger.info(f"Grafiken erfolgreich exportiert nach: \"{output_figures}\".")
 
-        logger.info("=== ESG Data Sentinel Pipeline Pipeline erfolgreich beendet ===")
+        logger.info("=== ESG Data Sentinel Pipeline erfolgreich und fehlerfrei beendet ===")
 
      # --- PHASE 7: ROBUSTE AUSNAHMEBEHANDLUNG ---
     except InvalidFileFormat as e:

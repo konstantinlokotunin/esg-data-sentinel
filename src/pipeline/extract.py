@@ -1,6 +1,7 @@
 """
 extract.py
 Kapselt die Logik zum Einlesen der Rohdaten über Generatoren.
+Optimiert für hohe Performance bei großen Datensätzen.
 """
 
 import logging
@@ -12,7 +13,7 @@ from .errors import InvalidFileFormat, DataValidationError
 # Logger für das einheitliche und übersichtliche Protokollieren ungültiger Zeilen
 logger = logging.getLogger(__name__)
 
-def read_csv_in_chunks(file_path: Path, chunk_size: int = 1) -> Generator[pd.DataFrame, None, None]:
+def read_csv_in_chunks(file_path: Path, chunk_size: int = 50000) -> Generator[pd.DataFrame, None, None]:
     """
     Generator, der eine CSV-Datei zeilenweise (lazy) als Chunk einliest.
 

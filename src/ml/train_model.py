@@ -74,5 +74,7 @@ def train_isolation_forest(
         1: 0,
         -1: 1
     })
+    # Der Anomaly Score (Je negativer, desto anomaler ist der Datenpunkt)
+    df["Anomaly_Score"] = model.decision_function(X_normalized)
 
     return df, scaler, model
