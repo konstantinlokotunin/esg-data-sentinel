@@ -42,27 +42,40 @@ Die Daten stammen aus dem **European Industrial Emissions Portal** mit folgendem
 
 ## 📂 Projektstruktur
 
+Das Projekt ist strikt modular nach Schichten und Paketen organisiert, um Zirkelbezüge zu vermeiden:
+
 ```text
 esg-data-sentinel-austria/
 ├── data/
-│   ├── raw/                 # Unveränderte Originaldaten
-│   ├── interim/             # Bereinigte Zwischenstände
-│   └── processed/           # Modellbereite Feature-Matrizen
-├── notebooks/               # Explorative Analysen (EDA)
+│   └── raw/                       # Unveränderte Original-CSV-Datei
+├── models/
+│   ├── model.joblib               # Das gespeicherte, trainierte ML-Modell
+│   └── scaler.joblib              # Der gespeicherte Daten-Scaler
 ├── outputs/
-│   ├── figures/             # Evaluierungs-Plots
-│   └── models/              # Serialisierte IsolationForest-Modelle
+│   ├── figures/                   # Generierte Analyse-Plots
+│   └── anomaly_reports.xlsx       # Konsolidierter Multi-Sheet Excel-Bericht
 ├── src/
-│   ├── extract.py           # Daten-Ingestion
-│   ├── transform.py         # Vorverarbeitung & Missing-Value-Checks
-│   ├── inject_errors.py     # Synthetische Fehlereinspeisung zu Testzwecken
-│   ├── train_model.py       # IsolationForest Training
-│   ├── evaluate_model.py    # Performance-Metrizen
-│   └── visualization.py     # Plotting-Funktionen
-├── app.py                   # UI / Dashboard (optional)
-├── run_pipeline.py          # Zentrales Orchestrierungs-Skript
-├── requirements.txt         # Python-Abhängigkeiten
-└── README.md                # Dokumentation
+│   ├── pipeline/                  # PAKET 1: ETL-Pipeline
+│   │   ├── __init__.py            # Paket-Initialisierung
+│   │   ├── model.py               # Datenklassen & OOP-Modelle
+│   │   ├── errors.py              # Custom App-Exceptions
+│   │   ├── extract.py             # Lazy-Evaluation Chunk-Generator
+│   │   └── cleaning.py            # Bereinigung & Validierung
+│   │
+│   └── ml/                        # PAKET 2: Machine Learning
+│       ├── __init__.py            # Paket-Initialisierung
+│       ├── transform.py           # Feature Engineering & Risiko-Klassifizierung
+│       ├── train_model.py         # Kernfunktion für das Modell-Fitting
+│       ├── evaluate_model.py      # Metriken-Aggregation & Excel-I/O
+│       └── visualization.py       # Reine Plotting-Funktionen
+│
+├── tests/
+│   └── test_transform.py          # Automatisierte Unittests
+├── main.py                        # Haupt-Pipeline: ETL bis Excel-Report
+├── train.py                       # Separates Skript: Modell trainieren & speichern
+├── predict.py                     # Separates Skript: Modell laden & anwenden
+├── requirements.txt               # Paket-Abhängigkeiten
+└── README.md                      # Projektdokumentation
 ```
 
 ---
@@ -70,11 +83,25 @@ esg-data-sentinel-austria/
 ## ⚡ Installation & Ausführung
 
 ### 1. Abhängigkeiten installieren
+Stellen Sie sicher, dass Ihre virtuelle Umgebung (`venv`) aktiv ist.
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Pipeline starten
+### 2. ETL-Pipeline & Reporting starten
+Generiert den Excel-Report im Ordner `outputs/` und die Kontrollgrafiken.
 ```bash
-python run_pipeline.py
+python main.py
+```
+
+### 3. Machine-Learning-Modell trainieren und speichern
+Teilt die Daten, trainiert den Isolation Forest und exportiert das fertige Modell nach `models/`.
+```bash
+python train.py
+```
+
+### 4. Vorhersagen auf neuen Daten berechnen (Inferenz)
+Lädt das fertige Modell aus der Datei und berechnet Vorhersagen für neue Datensätze, ohne neu zu trainieren.
+```bash
+python predict.py
 ```
