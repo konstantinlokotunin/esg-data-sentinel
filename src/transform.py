@@ -8,7 +8,7 @@ import logging
 import pandas as pd
 import numpy as np
 
-# Logger für das einheitliche und übersichtliche Protokollieren kritischer Validierungsfehler
+# Logger für das einheitliche und übersichtliche Protokollieren
 logger = logging.getLogger(__name__)
 
 def add_pollutant_groups(df: pd.DataFrame) -> pd.DataFrame:

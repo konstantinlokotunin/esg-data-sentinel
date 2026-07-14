@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 import pandas as pd
 
+# Logger für das einheitliche und übersichtliche Protokollieren
 logger = logging.getLogger(__name__)
 
 def create_anomaly_summary(df: pd.DataFrame) -> pd.DataFrame:

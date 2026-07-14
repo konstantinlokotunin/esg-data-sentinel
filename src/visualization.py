@@ -4,15 +4,14 @@ Kapselt die Generierung von Kontrollplots für die Bonus-Anforderungen.
 Trennt die reine Plot-Erstellung strikt von den Datei-Schreiboperationen (I/O).
 """
 
+import logging
+from pathlib import Path
+import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib import pyplot as plt
 import seaborn as sns
 
-from pathlib import Path
-
-file_path = r"C:\Users\konst\Documents\Python Projects\ESG Data Sentinel\esg-data-sentinel\outputs\figures"
-
-OUTPUT_DIR = Path(file_path)
+# Logger für das einheitliche und übersichtliche Protokollieren
+logger = logging.getLogger(__name__)
 
 def create_individual_fig(figsize=(14, 7)):
     """

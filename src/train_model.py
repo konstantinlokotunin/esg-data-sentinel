@@ -10,6 +10,7 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
+# Logger für das einheitliche und übersichtliche Protokollieren
 logger = logging.getLogger(__name__)
 
 def prepare_model_data(df: pd.DataFrame) -> pd.DataFrame:
