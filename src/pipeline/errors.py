@@ -12,6 +12,6 @@ class DataValidationError(Exception):
 
 class EmptyDatasetError(Exception):
     """
-    Wird ausgelöst, wenn das Dataset nach der Bereinigung leer ist.
+    Wird ausgelöst, wenn das Dataset nach der Filterung leer ist.
     """
     pass
