@@ -1,18 +1,20 @@
 """
 main.py
-Das zentrale Kontrollzentrum des ESG Data Sentinel.
-Orchestriert die Pakete 'pipeline' und 'ml' vollständig unter Einhaltung aller Vorgaben.
+Das zentrale RAG-ähnliche Kontrollzentrum des ESG Data Sentinel.
+Verbindet spezialisierte Komponenten-Klassen über tiefe Komposition 
 """
 
 import logging
 from pathlib import Path
+
+# Komponenten-Klassen aus den Paketen importieren
 from src.pipeline.errors import InvalidFileFormat, DataValidationError, EmptyDatasetError
-from src.pipeline.extract import extract_data
-from src.pipeline.cleaning import generate_missing_report, clean_data
-from src.ml.transform import add_pollutant_groups, add_features_for_isolation_forest
-from src.ml.train_model import prepare_model_data, train_isolation_forest
-from src.ml.evaluate_model import generate_and_save_excel_report
-from src.ml.visualization import generate_and_save_all_plots
+from src.pipeline.extract import DataLoader
+from src.pipeline.cleaning import DataCleaner
+from src.ml.transform import DataTransformer
+from src.ml.train_model import ModelPipeline
+from src.ml.evaluate_model import ReportGenerator
+from src.ml.visualization import DashboardRenderer
 
 # Root-Logging konfigurieren
 logging.basicConfig(
@@ -22,78 +24,83 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ESG_Sentinel_Core")
 
-def main():
-
-    # Dynamische Pfadauflösung relativ zur Projektwurzel
-    base_dir = Path(__file__).parent
+class ESGDataSentinel:
+    """
+    Zentraler System-Orchestrator.
+    Baut über Komposition eine mehrstufige Pipeline aus spezialisierten Unterklassen auf.
+    """
     
-    # Eingabedatei im data-Ordner
-    input_file = base_dir / "data" / "raw" / "industrial_releases_of_pollutants_to_air.csv"
+    def __init__(self):
+        self.base_dir = Path(__file__).parent
+        self.input_file = self.base_dir / "data" / "raw" / "industrial_releases_of_pollutants_to_air.csv"
+        self.output_excel = self.base_dir / "outputs" / "anomaly_reports.xlsx"
+        self.output_figures = self.base_dir / "outputs" / "figures"
+
+        # --- KOMPOSITION (RAG-Architektur-Style) ---
+        # Die Pipeline besitzt und steuert eigenständige Komponenten-Klassen als Sub-Systeme
+        self.loader = DataLoader(file_path=self.input_file)
+        self.cleaner = None
+        self.transformer = None
+        self.model_pipeline = None
+        self.report_generator = None
+        self.dashboard = None
+
+    def execute_pipeline(self) -> None:
+        """Führt die Pipeline geschützt aus und protokolliert jeden Teilschritt."""
+        logger.info("=== ESG Data Sentinel Pipeline gestartet ===")
+
+        try:
+            # --- PHASE 1: EXTRACTION ---
+            logger.info("Schritt 1: Extrahiere Rohdaten über Lazy-Evaluation-Generatoren...")
+            df_raw = self.loader.extract_data()
+            logger.info(f"Rohdaten erfolgreich geladen. Dimensionen: {df_raw.shape}")
+
+            # --- PHASE 2: CLEANING & MISSING REPORT ---
+            logger.info("Schritt 2: Führe eine Filterung und Bereinigung der Datensätze durch und erstelle eine Übersicht der fehlenden Werte...")
+            self.cleaner = DataCleaner(df_raw) # Dynamische Kompositions-Injektion
+            logger.info(f"Komponente aktiv: {self.cleaner}")
+            missing_report = self.cleaner.generate_missing_report()
+            df_cleaned = self.cleaner.clean_data()
+            logger.info(f"Daten erfolgreich bereinigt. Dimensionen: {df_cleaned.shape}")
+
+            # --- PHASE 3: FEATURE ENGINEERING ---
+            logger.info("Schritt 3: Führe Schadstoff-Klassifizierung und Feature Engineering durch...")
+            self.transformer = DataTransformer(df_cleaned)
+            df_transformed = self.transformer.add_features()
+            logger.info(f"Schadstoff-Klassifizierung und Feature Engineering abgeschlossen. Dimensionen: {df_transformed.shape}")
+
+            # --- PHASE 4: MACHINE LEARNING TRAINING ---
+            logger.info("Schritt 4: Extrahiere numerische Matrix und trainiere Isolation Forest...")
+            self.model_pipeline = ModelPipeline(df_transformed)
+            df_results, trained_scaler, trained_model = self.model_pipeline.train_isolation_forest()
+            logger.info("Modelltraining abgeschlossen.")
+            logger.info(f"Erkannte Anomalien: {df_results["Is_Anomaly"].sum()} von {len(df_results)} Datensätzen ({df_results["Is_Anomaly"].mean() * 100:.1f}%)")
     
-    # Ausgabeordner für Berichte und Grafiken
-    output_excel = base_dir / "outputs" / "anomaly_reports.xlsx"
-    output_figures = base_dir / "outputs" / "figures"
+            # --- PHASE 5: EVALUATION & EXCEL-REPORTING ---
+            logger.info("Schritt 5: Generiere konsolidierten Multi-Sheet Excel-Report...")
+            self.report_generator = ReportGenerator(df_results)
+            self.report_generator.generate_and_save_excel_report(self.output_excel, missing_report)
+            logger.info(f"Multi-Sheet Excel-Bericht erfolgreich exportiert nach: \"{self.output_excel}\".")
 
-    logger.info("=== ESG Data Sentinel Pipeline gestartet ===")
+            # --- PHASE 6: VISUALIZATIONS ---
+            logger.info("Schritt 6: Erzeuge explorative Analyseplots...")
+            self.dashboard = DashboardRenderer(df_results)
+            self.dashboard.generate_and_save_plots(self.output_figures)
+            logger.info(f"Grafiken erfolgreich exportiert nach: \"{self.output_figures}\".")
 
-    try:
-        # --- PHASE 1: EXTRACTION ---
-        logger.info("Schritt 1: Extrahiere Rohdaten über Lazy-Evaluation-Generatoren...")
-        df_raw = extract_data(input_file)
-        logger.info(f"Rohdaten erfolgreich geladen. Dimensionen: {df_raw.shape}")
+            logger.info("=== ESG Data Sentinel Pipeline erfolgreich und fehlerfrei beendet ===")
 
-        # --- PHASE 2: CLEANING & MISSING REPORT ---
-        logger.info("Schritt 2: Führe eine Filterung und Bereinigung der Datensätze durch und erstelle eine Übersicht der fehlenden Werte...")
-        missing_report = generate_missing_report(df_raw)
-        df_cleaned = clean_data(df_raw)
-        logger.info(f"Daten erfolgreich bereinigt. Dimensionen: {df_cleaned.shape}")
-
-        # --- PHASE 3: FEATURE ENGINEERING ---
-        logger.info("Schritt 3: Führe Schadstoff-Klassifizierung und Feature Engineering durch...")
-        df_grouped = add_pollutant_groups(df_cleaned)
-        df_features = add_features_for_isolation_forest(df_grouped)
-        logger.info(f"Schadstoff-Klassifizierung und Feature Engineering abgeschlossen. Dimensionen: {df_features.shape}")
-
-        # --- PHASE 4: MACHINE LEARNING TRAINING ---
-        logger.info("Schritt 4: Extrahiere numerische Matrix und trainiere Isolation Forest...")
-        X_matrix = prepare_model_data(df_features)  
-        # Das Modell wird trainiert und gibt die Ergebnisse sowie die Modell-Objekte zurück                       
-        df_results, trained_scaler, trained_model = train_isolation_forest(
-            df=df_features, 
-            X=X_matrix, 
-            contamination=0.05
-            )
-        logger.info("Modelltraining abgeschlossen.")
-        logger.info(f"Erkannte Anomalien: {df_results["Is_Anomaly"].sum()} von {len(df_results)} Datensätzen ({df_results["Is_Anomaly"].mean() * 100:.1f}%)")
-    
-        # --- PHASE 5: EVALUATION & EXCEL-REPORTING ---
-        logger.info("Schritt 5: Generiere konsolidierten Multi-Sheet Excel-Report...")
-        generate_and_save_excel_report(
-            df= df_results,
-            output_path=output_excel,
-            df_missing_report=missing_report
-        )
-        logger.info(f"Multi-Sheet Excel-Bericht erfolgreich exportiert nach: \"{output_excel}\".")
-
-        # --- PHASE 6: VISUALIZATIONS ---
-        logger.info("Schritt 6: Erzeuge explorative Analyseplots...")
-        generate_and_save_all_plots(
-                df=df_results, 
-                output_dir=output_figures
-            )
-        logger.info(f"Grafiken erfolgreich exportiert nach: \"{output_figures}\".")
-
-        logger.info("=== ESG Data Sentinel Pipeline erfolgreich und fehlerfrei beendet ===")
-
-     # --- PHASE 7: ROBUSTE AUSNAHMEBEHANDLUNG ---
-    except InvalidFileFormat as e:
-        logger.error(f"Pipeline-Abbruch: Ungültiges Dateiformat erkannt -> {e}")
-    except EmptyDatasetError as e:
-        logger.error(f"Pipeline-Abbruch: Keine Daten nach der Bereinigung übrig -> {e}")
-    except DataValidationError as e:
-        logger.error(f"Pipeline-Abbruch: Kritischer Validierungsfehler im Datenstrom -> {e}")
-    except Exception as e:
-        logger.critical(f"Unerwarteter Systemfehler außerhalb der Applikationslogik: {e}", exc_info=True)
+        # --- PHASE 7: ROBUSTE AUSNAHMEBEHANDLUNG ---
+        except InvalidFileFormat as e:
+            logger.error(f"Pipeline-Abbruch: Ungültiges Dateiformat erkannt -> {e}")
+        except EmptyDatasetError as e:
+            logger.error(f"Pipeline-Abbruch: Keine Daten nach der Bereinigung übrig -> {e}")
+        except DataValidationError as e:
+            logger.error(f"Pipeline-Abbruch: Kritischer Validierungsfehler im Datenstrom -> {e}")
+        except Exception as e:
+            logger.critical(f"Unerwarteter Systemfehler außerhalb der Applikationslogik: {e}", exc_info=True)
 
 if __name__ == "__main__":
-    main()
+    # Instanziierung des zentralen Pipeline-Verwalters
+    sentinel = ESGDataSentinel()
+    sentinel.execute_pipeline()

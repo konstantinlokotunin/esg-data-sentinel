@@ -4,13 +4,10 @@ Kapselt die Rohdatenbeschaffung über Generatoren in spezialisierten Komponenten
 Optimiert für hohe Performance bei großen Datensätzen.
 """
 
-import logging
 from pathlib import Path
 from typing import Generator
 import pandas as pd
 from .errors import InvalidFileFormat, DataValidationError
-
-logger = logging.getLogger(__name__)
 
 class DataLoader:
     """Komponente zum ressourcenschonenden Streamen von Rohdaten"""
@@ -48,8 +45,8 @@ class DataLoader:
         if not chunks:
             raise DataValidationError("Extraktion fehlgeschlagen: Keine Daten extrahiert.")
 
-        df = pd.concat(chunks, ignore_index=True)
-        return df
+        df_raw = pd.concat(chunks, ignore_index=True)
+        return df_raw
     
     def __repr__(self) -> str:
         return f"Class DataLoader (Target='{self.file_path.name}', Chunk Size={self.chunk_size})"
