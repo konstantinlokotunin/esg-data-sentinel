@@ -1,7 +1,7 @@
 """
 train_model.py
-Kapselt das Modell-Training und die Ergebnisse, inkl. der ML-Artefakte für die Wiederverwendbarkeit,
-in spezialisierten Komponenten-Klassen.
+Kapselt das unüberwachte Modell-Training des Isolation Forest und die Ergebnisse,
+inkl. der ML-Artefakte für die Wiederverwendbarkeit
 """
 
 from typing import Tuple
@@ -10,11 +10,27 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
-class ModelPipeline():
-    """Komponente zur hochdimensionalen Feature-Generierung"""
+# ==========================================
+# REINE FUNKTIONEN
+# ==========================================
+
+def extract_ml_features(df: pd.DataFrame, feature_cols: list) -> pd.DataFrame:
+    """Reine Funktion: Validiert und extrahiert die numerischen Features für den Isolation Forest."""
+    missing = [col for col in feature_cols if col not in df.columns]
+    if missing:
+        raise KeyError(f"Fehlende Features für ML-Training: {missing}")
+    return df[feature_cols].copy()
+
+# ==========================================
+# OOP-KOMPONENTE
+# ==========================================
+
+class ModelPipeline:
+    """Komponente zur Vorbereitung und zum Training des Isolation Forest."""
+    
     def __init__(self, df: pd.DataFrame):
-        self.df_transformed = df.copy() # Kopie um Side-Effects zu vermeiden
-        self.features = [
+        self.df_transformed = df.copy()
+        self.feature_cols = [
             "Amount_Log",
             "Dev_from_Group_Median",
             "Dev_from_Sector_Median",
@@ -22,46 +38,41 @@ class ModelPipeline():
             "YoY_Change_Pct",
         ]
 
-    def prepare_model_data(self) -> pd.DataFrame:
+    def train_pipeline(self) -> Tuple[IsolationForest, StandardScaler, pd.DataFrame, pd.DataFrame]:
         """
-        Extrahiert die numerischen Features für den Isolation Forest.
+        Splittet die Daten, skaliert sie und trainiert den Isolation Forest.
+        Gibt das trainierte Modell, den Scaler sowie Train- und Test-Feature-Sätze zurück.
         """
+        # Features extrahieren über reine Funktion
+        X = extract_ml_features(self.df_transformed, self.feature_cols)
 
-        # Sicherstellen, dass alle geforderten Spalten im DataFrame existieren
-        missing_features = [col for col in self.features if col not in self.df_transformed.columns]
-        if missing_features:
-            raise KeyError(f"Fehlende Features im DataFrame für ML-Training: {missing_features}")
-        
-        return self.df_transformed[self.features].copy()
-
-    def train_isolation_forest(self) -> Tuple[pd.DataFrame, StandardScaler, IsolationForest]:
-        """
-        Trainiert das Anomalieerkennungsmodell auf dem Train-Split,
-        evaluiert auf dem Test-Split und fügt dem transformierten DataFrame die Ergebnisse hinzu.
-        Gibt die trainierten Artefakte für die spätere Verwendung/Persistierung zurück.
-        """
-
-        # 0. Daten-Integrität prüfen (Führt die obere Validierung aus)
-        X = self.prepare_model_data()
-
-        # 1. Train-Test-Split
+        # Train-Test-Split
         X_train, X_test = train_test_split(X, test_size=0.2, random_state=42)
 
-        # 2. Feature-Skalierung
+        # Feature-Skalierung (Wichtig für distanzbasierte/hochdimensionale Modelle)
         scaler = StandardScaler()
         X_train_normalized = scaler.fit_transform(X_train)
         X_test_normalized = scaler.transform(X_test)
 
-        # 3. Modellinitialisierung
+        # Konvertierung zurück in DataFrames, um Spaltennamen für spätere Schritte zu erhalten
+        X_train_df = pd.DataFrame(X_train_normalized, columns=self.feature_cols, index=X_train.index)
+        X_test_df = pd.DataFrame(X_test_normalized, columns=self.feature_cols, index=X_test.index)
+
+        # Modell-Fitting
         model = IsolationForest(
             n_estimators=100,
             contamination=0.05,
             random_state=42,
-            n_jobs=-1 # Nutzt alle CPU-Kerne für schnelleres Training
+            n_jobs=-1
         )
+        model.fit(X_train_df)
+        
+        return model, scaler, X_train_df, X_test_df
+    
+    def __repr__(self) -> str:
+        return f"ModelPipeline(SelectedFeatures={len(self.feature_cols)})"
 
-        # 4. Modell-Fitting
-        model.fit(X_train_normalized)
+        
     
         # 5. Vorhersagen treffen (Inferenz NUR auf den Testdaten)
         # Isolation Forest: 1 = Normal, -1 = Anomalie
@@ -81,6 +92,3 @@ class ModelPipeline():
 
         df_results = self.df_transformed
         return df_results, scaler, model
-    
-    def __repr__(self) -> str:
-        return f"ModelPipeline(Features={self.features})"

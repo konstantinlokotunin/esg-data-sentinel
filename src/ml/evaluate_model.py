@@ -1,86 +1,60 @@
 """
 evaluate_model.py
-Kapselt die Evaluierungsmetriken und aggregiert die Reports.
-Ermöglicht den dynamischen Export aller Tabellenblätter ohne harte Pfade.
+Berechnet rein mathematische Auswertungen und aggregiert Ergebnisse.
 """
 
-from pathlib import Path
 import pandas as pd
 
-class ReportGenerator():
-    """Komponente zur hochdimensionalen Feature-Generierung"""
+# ==========================================
+# REINE FUNKTIONEN (Pflichtanforderung 4)
+# ==========================================
+
+def calculate_anomaly_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """Reine Funktion: Berechnet die globalen Anomalie-Kennzahlen."""
+    total_samples = len(df)
+    anomaly_count = int(df["Is_Anomaly"].sum())
+    anomaly_rate = round(anomaly_count / total_samples * 100, 2) if total_samples > 0 else 0.0
+
+    return pd.DataFrame({
+        "Total samples": [total_samples],
+        "Detected anomalies": [anomaly_count],
+        "Anomaly Rate %": [anomaly_rate]
+    })
+
+def aggregate_by_column(df: pd.DataFrame, column_name: str | list) -> pd.DataFrame:
+    """Reine Funktion: Aggregiert Anomalien nach einer bestimmten Kategorie (Sektor/Gruppe)."""
+    return (
+        df[df["Is_Anomaly"] == 1]
+        .groupby(column_name)
+        .size()
+        .sort_values(ascending=False)
+        .reset_index(name="Anomalien_Anzahl")
+    )
+
+# ==========================================
+# OOP-KOMPONENTE (Pflichtanforderung 3)
+# ==========================================
+
+class ReportGenerator:
+    """Komponente zur Strukturierung der Reports (Anforderung 3)."""
+    
     def __init__(self, df: pd.DataFrame):
         self.df_results = df
 
-    def create_anomaly_summary(self) -> pd.DataFrame:
-        """
-        Erstellt eine übersichtliche Zusammenfassung der Ergebnisse der Anomalieerkennung.
-        """
+    def build_reports(self) -> dict:
+        """Sammelt alle berechneten Reports in einem Dictionary."""
+        return {
+            "Summary": calculate_anomaly_summary(self.df_results),
+            "Top_20_Anomalien": self.df_results.sort_values("Anomaly_Score", ascending=True).head(20),
+            "Nach_Sektor": aggregate_by_column(self.df_results, "Sector"),
+            "Nach_Schadstoffgruppe": aggregate_by_column(self.df_results, "Pollutant_Group"),
+            "Nach_Sektor_und_Schadstoffgruppe": aggregate_by_column(self.df_results, ["Sector", "Pollutant_Group"])
+        }
 
-        self.total_samples = len(self.df_results)
-        self.anomaly_count = self.df_results["Is_Anomaly"].sum()
-        self.anomaly_rate = round(self.anomaly_count / self.total_samples * 100, 2) if self.total_samples > 0 else 0.0
+    def __repr__(self) -> str:
+        return f"ReportGenerator(Rows={len(self.df_results)})"
 
-        summary = pd.DataFrame({
-            "Total samples": [self.total_samples],
-            "Detected anomalies": [self.anomaly_count],
-            "Anomaly Rate %": [self.anomaly_rate]
-        })
-        return summary
 
-    def get_top_anomalies(self, top_n: int = 20) -> pd.DataFrame:
-        """
-        Returns the most unusual records based on Anomaly_Score (lower is more unusual).
-        """
-
-        top_anomalies = (
-            self.df_results[self.df_results["Is_Anomaly"] == 1]
-            .sort_values("Anomaly_Score", ascending=True)
-            .head(top_n)
-        )
-        return top_anomalies
-
-    def anomalies_by_sector(self) -> pd.DataFrame:
-        """
-        Counts anomalies by sector.
-        """
-
-        result = (
-            self.df_results[self.df_results["Is_Anomaly"] == 1]
-            .groupby("Sector")
-            .size()
-            .sort_values(ascending=False)
-            .reset_index(name="Anomaly_Count")
-        )
-        return result
-
-    def anomalies_by_pollutant_group(self) -> pd.DataFrame:
-        """
-        Counts anomalies by pollutant group.
-        """
-
-        result = (
-            self.df_results[self.df_results["Is_Anomaly"] == 1]
-            .groupby("Pollutant_Group")
-            .size()
-            .sort_values(ascending=False)
-            .reset_index(name="Anomaly_Count")
-        )
-        return result
-
-    def anomalies_by_sector_and_pollutant_group(self) -> pd.DataFrame:
-        """
-        Counts anomalies by pollutant group.
-        """
-
-        result = (
-            self.df_results[self.df_results["Is_Anomaly"] == 1]
-            .groupby(["Sector", "Pollutant_Group"])
-            .size()
-            .sort_values(ascending=False)
-            .reset_index(name="Anomaly_Count")
-        )
-        return result
 
     def generate_and_save_excel_report(
         self,
@@ -112,6 +86,3 @@ class ReportGenerator():
             sector_report.to_excel(writer, sheet_name="By_Sector", index=False)
             group_report.to_excel(writer, sheet_name="By_Group", index=False)
             sector_group_report.to_excel(writer, sheet_name="By_Sector_&_Group", index=False)
-
-    def __repr__(self) -> str:
-        return f"ReportGenerator(ReadyToExport={len(self.df_results)} rows)"
