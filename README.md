@@ -45,29 +45,33 @@ Die Daten stammen aus dem **European Industrial Emissions Portal** mit folgendem
 Das Projekt ist strikt modular nach Schichten und Paketen organisiert, um Zirkelbezüge zu vermeiden:
 
 ```text
-esg-data-sentinel-austria/
-├── data/
-│   └── raw/                       # Unveränderte Original-CSV-Datei
-├── models/
-│   ├── model.joblib               # Das gespeicherte, trainierte ML-Modell
-│   └── scaler.joblib              # Der gespeicherte Daten-Scaler
-├── outputs/
-│   ├── figures/                   # Generierte Analyse-Plots
-│   └── anomaly_reports.xlsx       # Konsolidierter Multi-Sheet Excel-Bericht
-├── src/
-│   ├── pipeline/                  # PAKET 1: ETL-Pipeline
-│   │   ├── __init__.py            # Paket-Initialisierung
-│   │   ├── model.py               # Datenklassen & OOP-Modelle
-│   │   ├── errors.py              # Custom App-Exceptions
-│   │   ├── extract.py             # Lazy-Evaluation Chunk-Generator
-│   │   └── cleaning.py            # Bereinigung & Validierung
+esg-data-sentinel/
+│
+├── data/                            # Reiner Datenordner
+│   └── raw/                         # Unveränderte Original-CSV-Datei
+│
+├── outputs/                         # Speicherort für generierte Artefakte
+│   ├── figures/                     # Generierte Analyse-Plots
+│   └── anomaly_reports.xlsx         # Konsolidierter Multi-Sheet Excel-Bericht
+│
+├── models/                          # Speicherort für serialisierte ML-Objekte
+│   ├── model.joblib                 # Das gespeicherte, trainierte ML-Modell
+│   └── scaler.joblib                # Der gespeicherte Daten-Scaler
+│
+├── src/                             # Haupt-Code-Ordner
 │   │
-│   └── ml/                        # PAKET 2: Machine Learning
-│       ├── __init__.py            # Paket-Initialisierung
-│       ├── transform.py           # Feature Engineering & Risiko-Klassifizierung
-│       ├── train_model.py         # Kernfunktion für das Modell-Fitting
-│       ├── evaluate_model.py      # Metriken-Aggregation & Excel-I/O
-│       └── visualization.py       # Reine Plotting-Funktionen
+│   ├── pipeline/                    # PAKET 1: Datenbeschaffung & Bereinigung
+│   │   ├── __init__.py              # Paket-Initialisierung
+│   │   ├── errors.py                # Enthält: InvalidFileFormat, DataValidationError, EmptyDatasetError
+│   │   ├── extract.py               # Lazy-Evaluation Chunk-Generator
+│   │   └── cleaning.py              # Bereinigung & Validierung
+│   │
+│   └── ml/                          # PAKET 2: Daten-Analyse & Modellierung
+│      ├── __init__.py               # Paket-Initialisierung
+│      ├── transform.py              # Schadstoff-Klassifizierung & Feature Engineering
+│      ├── train_model.py            # Kernfunktion für das Modell-Fitting
+│      ├── evaluate_model.py         # Metriken-Aggregation & Excel-I/O
+│      └── visualization.py          # Reine Plotting-Funktionen
 │
 ├── tests/
 │   └── test_transform.py          # Automatisierte Unittests
