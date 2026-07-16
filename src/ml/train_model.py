@@ -6,6 +6,7 @@ in spezialisierten Komponenten-Klassen.
 
 from typing import Tuple
 import pandas as pd
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
@@ -42,10 +43,12 @@ class ModelPipeline():
 
         # Extraktion der reinen numerischen Feature-Matrix
         X = self.df_transformed[self.features].copy()
+        X_train, X_test = train_test_split(X, test_size=0.2, random_state=42)
 
         # 1. Feature-Skalierung
         scaler = StandardScaler()
-        X_normalized = scaler.fit_transform(X)
+        X_train_normalized = scaler.fit_transform(X_train)
+        X_test_normalized = scaler.transform(X_test)
 
         # 2. Modellinitialisierung
         model = IsolationForest(
@@ -56,18 +59,23 @@ class ModelPipeline():
         )
 
         # 3. Modell-Fitting
-        model.fit(X_normalized)
+        model.fit(X_train_normalized)
     
-        # 4. Vorhersagen treffen (Inferenz auf den Trainingsdaten)
+        # 4. Vorhersagen treffen (Inferenz NUR auf den Testdaten)
         # Isolation Forest: 1 = Normal, -1 = Anomalie
-        self.df_transformed["Is_Anomaly"] = model.predict(X_normalized)
+        predictions = model.predict(X_test_normalized)
         # Ummappen auf Standard-Binärklassifikation: 0 = Normal, 1 = Anomalie
-        self.df_transformed["Is_Anomaly"] = self.df_transformed["Is_Anomaly"].map({
-            1: 0,
-            -1: 1
-        })
-        # Der Anomaly Score (Je negativer, desto anomaler ist der Datenpunkt)
-        self.df_transformed["Anomaly_Score"] = model.decision_function(X_normalized)
+        predictions_mapped = [1 if x == -1 else 0 for x in predictions]
+        anomaly_scores = model.decision_function(X_test_normalized)
+
+        # Vorbereitung leerer Spalten im Haupt-DataFrame
+        self.df_transformed["Is_Anomaly"] = pd.NA
+         # Der Anomaly Score (Je negativer, desto anomaler ist der Datenpunkt)
+        self.df_transformed["Anomaly_Score"] = pd.NA
+
+        # Gezielte Zuweisung über den Index von X_test
+        self.df_transformed.loc[X_test.index, "Is_Anomaly"] = predictions_mapped
+        self.df_transformed.loc[X_test.index, "Anomaly_Score"] = anomaly_scores
 
         df_results = self.df_transformed
         return df_results, scaler, model
