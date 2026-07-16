@@ -104,15 +104,14 @@ class ReportGenerator():
 
         # I/O-Prozess gebündelt ausführen
         with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+            # Den Missing-Report aus der früheren Pipeline-Phase als Tabellenblatt integrieren
+            if df_missing_report is not None:
+                df_missing_report.to_excel(writer, sheet_name="Missing_Data_Analysis", index=True)
             summary_report.to_excel(writer, sheet_name="Top_Anomalies", index=False)
             top_anomalies.to_excel(writer, sheet_name="Top_Anomalies", index=False)
             sector_report.to_excel(writer, sheet_name="By_Sector", index=False)
             group_report.to_excel(writer, sheet_name="By_Group", index=False)
             sector_group_report.to_excel(writer, sheet_name="By_Sector_&_Group", index=False)
-
-        # Den Missing-Report aus der früheren Pipeline-Phase als Tabellenblatt integrieren
-            if df_missing_report is not None:
-                df_missing_report.to_excel(writer, sheet_name="Missing_Data_Analysis", index=True)
 
     def __repr__(self) -> str:
         return f"ReportGenerator(ReadyToExport={len(self.df_results)} rows)"

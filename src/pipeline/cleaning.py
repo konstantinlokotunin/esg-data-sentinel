@@ -18,9 +18,10 @@ class DataCleaner:
         """Erstellt ein DataFrame mit einer Übersicht der fehlenden Werte."""
         missing_report = pd.DataFrame({
             "missing_values": self.df_raw.isna().sum(),
-            "missing_percent": self.df_raw.isna().mean() * 100
-        })
-        return missing_report.sort_values("missing_values", ascending=False)
+            "missing_percent": round(self.df_raw.isna().mean() * 100, 2)
+        }).sort_values("missing_values", ascending=False)
+
+        return missing_report
 
     def clean_data(self) -> pd.DataFrame:
         """Wählt relevante Spalten, formatiert Datentypen und filtert nach Region."""
