@@ -50,9 +50,11 @@ esg-data-sentinel/
 ├── data/                            # Reiner Datenordner
 │   └── raw/                         # Unveränderte Original-CSV-Datei
 │
-├── outputs/                         # Speicherort für generierte Artefakte
-│   ├── figures/                     # Generierte Analyse-Plots
-│   └── anomaly_reports.xlsx         # Konsolidierter Multi-Sheet Excel-Bericht
+├── outputs/                         # Zentraler Ausgabeordner für Artefakte und Berichte
+│   ├── figures/                     # Von train.py erzeugte Dashboard-Plots
+│   └── reports/                     # Von den Skripten erzeugte Tabellen und Berichte
+│       ├── anomaly_report.xlsx      # Konsolidierter Multi-Sheet Excel-Bericht
+│       └── missing_data_report.csv  # Von main.py erzeugte Übersicht fehlender Werte
 │
 ├── models/                          # Speicherort für serialisierte ML-Objekte
 │   ├── model.joblib                 # Das gespeicherte, trainierte ML-Modell
@@ -62,24 +64,24 @@ esg-data-sentinel/
 │   │
 │   ├── pipeline/                    # PAKET 1: Datenbeschaffung & Bereinigung
 │   │   ├── __init__.py              # Paket-Initialisierung
-│   │   ├── errors.py                # Enthält: InvalidFileFormat, DataValidationError, EmptyDatasetError
-│   │   ├── extract.py               # Lazy-Evaluation Chunk-Generator
-│   │   └── cleaning.py              # Bereinigung & Validierung
+│   │   ├── errors.py                # Eigene Exceptions: InvalidFileFormat, DataValidationError, EmptyDatasetError
+│   │   ├── extract.py               # Zeilenweiser Streaming-Generator (Lazy Loading)
+│   │   └── cleaning.py              # Reine Funktionen zur Filterung & Bereinigung
 │   │
 │   └── ml/                          # PAKET 2: Daten-Analyse & Modellierung
 │      ├── __init__.py               # Paket-Initialisierung
-│      ├── transform.py              # Schadstoff-Klassifizierung & Feature Engineering
-│      ├── train_model.py            # Kernfunktion für das Modell-Fitting
-│      ├── evaluate_model.py         # Metriken-Aggregation & Excel-I/O
-│      └── visualization.py          # Reine Plotting-Funktionen
+│      ├── transform.py              # Reine Funktionen für Schadstoff-Klassifizierung & Feature Engineering
+│      ├── train_model.py            # Mathematische Pipeline für Train-Test-Splitting & Modell-Fitting
+│      ├── evaluate_model.py         # Reine mathematische Metriken-Aggregation für Berichte
+│      └── visualization.py          # Reine Plotting-Funktionen (Memory Leak geschützt)
 │
 ├── tests/
-│   └── test_transform.py          # Automatisierte Unittests
-├── main.py                        # Haupt-Pipeline: ETL bis Excel-Report
-├── train.py                       # Separates Skript: Modell trainieren & speichern
-├── predict.py                     # Separates Skript: Modell laden & anwenden
-├── requirements.txt               # Paket-Abhängigkeiten
-└── README.md                      # Projektdokumentation
+│   └── test_transform.py            # Automatisierte Unittests
+├── main.py                          # Reiner ETL-Orchestrator: Extraktion, Bereinigung & Feature-Export
+├── train.py                         # ML-Zentrale: Trainiert, evaluiert auf Testdaten und speichert Reports, Dashboard-Plots & Modelle
+├── predict.py                       # Standalone-Inferenz: Lädt Modellartefakte und klassifiziert neue Datensätze
+├── requirements.txt                 # Paket-Abhängigkeiten
+└── README.md                        # Projektdokumentation
 ```
 
 ---
@@ -87,25 +89,25 @@ esg-data-sentinel/
 ## ⚡ Installation & Ausführung
 
 ### 1. Abhängigkeiten installieren
-Stellen Sie sicher, dass Ihre virtuelle Umgebung (`venv`) aktiv ist.
+Führen Sie den folgenden Befehl in Ihrem Terminal aus, um alle benötigten Bibliotheken global oder in Ihrer Umgebung zu installieren:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. ETL-Pipeline & Reporting starten
-Generiert den Excel-Report im Ordner `outputs/` und die Kontrollgrafiken.
+### 2. ETL-Pipeline starten
+Startet die Datenaufbereitung. Liest die Rohdaten zeilenweise ein, filtert nach Österreich, berechnet mathematische Features und speichert die vorbereiteten Daten ab.
 ```bash
 python main.py
 ```
 
-### 3. Machine-Learning-Modell trainieren und speichern
-Teilt die Daten, trainiert den Isolation Forest und exportiert das fertige Modell nach `models/`.
+### 3. Machine-Learning-Modell trainieren, evaluieren & visualisieren
+Führt den Train-Test-Split durch, trainiert den Isolation Forest, bewertet die Performance auf den Testdaten und exportiert den finalen Excel-Report sowie die Kontrollgrafiken in den Ordner `reports/`.
 ```bash
 python train.py
 ```
 
 ### 4. Vorhersagen auf neuen Daten berechnen (Inferenz)
-Lädt das fertige Modell aus der Datei und berechnet Vorhersagen für neue Datensätze, ohne neu zu trainieren.
+Simuliert den Produktiveinsatz. Lädt die fertigen Artefakte aus dem Ordner `models/` und klassifiziert einen neuen Datensatz sofort, ohne das Modell neu zu trainieren.
 ```bash
 python predict.py
 ```
