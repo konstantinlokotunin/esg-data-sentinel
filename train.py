@@ -10,6 +10,7 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
+from src.pipeline.errors import InvalidFileFormat, DataValidationError, EmptyDatasetError
 from src.pipeline.extract import DataLoader
 from src.pipeline.cleaning import DataCleaner
 from src.ml.transform import DataTransformer
@@ -38,56 +39,102 @@ def save_model_artefacts(model_path: Path, model: IsolationForest, scaler_path: 
     joblib.dump(model, model_path)
     joblib.dump(scaler, scaler_path)
 
-
-def main():
-    base_dir = Path(__file__).parent
-    input_file = base_dir / "data" / "raw" / "industrial_releases_of_pollutants_to_air.csv"
+class ESGDataSentinel:
+    """
+    Zentraler System-Orchestrator für den gesamten ML-Prozess.
+    Baut über Komposition die Datenpipeline aus den spezialisierten Unterklassen auf.
+    """ 
+    def __init__(self):
+        self.base_dir = Path(__file__).parent
+        self.input_file = self.base_dir / "data" / "raw" / "industrial_releases_of_pollutants_to_air.csv"
     
-    # Zielpfade definieren
-    model_path = base_dir / "models" / "model.joblib"
-    scaler_path = base_dir / "models" / "scaler.joblib"
-    report_path = base_dir / "reports" / "anomaly_report.xlsx"
-    plot_path = base_dir / "reports" / "figures"
+        # Zielpfade definieren
+        self.model_path = self.base_dir / "models" / "model.joblib"
+        self.scaler_path = self.base_dir / "models" / "scaler.joblib"
+        self.report_path = self.base_dir / "outputs" / "reports" / "anomaly_report.xlsx"
+        self.plot_path = self.base_dir / "outputs" / "figures"
 
-    logger.info("Starte ETL-Pipeline...")
-    df_raw = DataLoader(input_file).extract_data()
-    df_cleaned = DataCleaner(df_raw).clean_data()
-    df_transformed = DataTransformer(df_cleaned).transform_data()
+        # --- KOMPOSITION (RAG-Architektur-Style) ---
+        self.loader = DataLoader(self.input_file)
+        # Die Pipeline besitzt und steuert eigenständige Komponenten-Klassen als Sub-Systeme
+        self.cleaner = None
+        self.transformer = None
+        self.model_pipeline = None
+        self.report_generator = None
+        self.dashboard = None
 
-    logger.info("Trainiere Isolation Forest Modell...")
-    pipeline = ModelPipeline(df_transformed)
+    def execute_pipeline(self) -> None:
+        """Führt die Pipeline geschützt aus und protokolliert jeden Teilschritt."""
+        logger.info("=== ESG Data Sentinel ML-Pipeline gestartet ===")
 
-    # Modell und Scaler aus train_model.py abholen
-    model, scaler, X_train, X_test = pipeline.train_pipeline()
+        try:
+            # --- PHASE 1: EXTRACTION (Generator-Streaming) ---
+            logger.info("Schritt 1: Extrahiere Rohdaten über Lazy-Evaluation-Generatoren...")
+            df_raw = self.loader.extract_data()
+            logger.info(f"Rohdaten erfolgreich geladen. Dimensionen: {df_raw.shape}")
 
-    # --- EVALUIERUNG AUF TESTDATEN ---
-    logger.info("Evaluiere Modell auf Testdaten...")
-    # Isolation Forest: 1 = Normal, -1 = Anomalie
-    test_predictions = model.predict(X_test)
-    test_scores = model.decision_function(X_test)
+            # --- PHASE 2: DATA CLEANING ---
+            logger.info("Schritt 2: Führe eine Filterung und Bereinigung der Datensätze durch...")
+            self.cleaner = DataCleaner(df_raw)
+            df_cleaned = self.cleaner.clean_data()
+            logger.info(f"Daten erfolgreich bereinigt. Dimensionen: {df_cleaned.shape}")
 
-    # Gezielte Zuweisung der Vorhersagen und Anomaly Scores über den Index von X_test
-    df_results = df_transformed.loc[X_test.index].copy()
-    # Ummappen auf Standard-Binärklassifikation: 0 = Normal, 1 = Anomalie
-    df_results["Is_Anomaly"] = [1 if x == -1 else 0 for x in test_predictions]
-    df_results["Anomaly_Score"] = test_scores
+            # --- PHASE 3: FEATURE ENGINEERING ---
+            logger.info("Schritt 3: Führe Schadstoff-Klassifizierung und Feature Engineering durch...")
+            self.transformer = DataTransformer(df_cleaned)
+            df_transformed = self.transformer.transform_data()
+            logger.info(f"Schadstoff-Klassifizierung und Feature Engineering abgeschlossen. Dimensionen: {df_transformed.shape}")
 
-    # Reports generieren
-    reporter = ReportGenerator(df_results)
-    all_reports = reporter.build_reports()
+            # --- PHASE 4: MACHINE LEARNING ---
+            logger.info("Schritt 4: Extrahiere numerische Matrix für den Isolation Forest...")
+            self.model_pipeline = ModelPipeline(df_transformed)
+
+            # Modell, Scaler und Testdatensatz aus train_model.py abholen
+            model, scaler, _, X_test = self.model_pipeline.train_pipeline()
+            # Evaluierung auf Testdaten
+            logger.info("Evaluiere Modell auf Testdaten...")
+            # Isolation Forest: 1 = Normal, -1 = Anomalie
+            test_predictions = model.predict(X_test)
+            test_scores = model.decision_function(X_test)
+
+            # Gezielte Zuweisung der Vorhersagen und Anomaly Scores über den Index von X_test
+            df_results = df_transformed.loc[X_test.index].copy()
+            # Ummappen auf Standard-Binärklassifikation: 0 = Normal, 1 = Anomalie
+            df_results["Is_Anomaly"] = [1 if x == -1 else 0 for x in test_predictions]
+            df_results["Anomaly_Score"] = test_scores
+            logger.info("Modelltraining abgeschlossen.")
+            logger.info(f"Erkannte Anomalien: {df_results["Is_Anomaly"].sum()} von {len(df_results)} Datensätzen ({df_results["Is_Anomaly"].mean() * 100:.1f}%)")
+
+            # --- PHASE 5: EXCEL-REPORTING ---
+            logger.info("Schritt 5: Generiere konsolidierten Multi-Sheet Excel-Report...")
+            self.report_generator = ReportGenerator(df_results)
+            all_reports = self.report_generator.build_reports()
     
-    # Excel-Export ausführen (Zentralisiertes I/O)
-    save_excel_report(report_path, all_reports)
-    logger.info(f"Excel-Report erfolgreich exportiert nach: \"{report_path}\".")
+            # Excel-Export ausführen (Zentralisiertes I/O)
+            save_excel_report(self.report_path, all_reports)
+            logger.info(f"Excel-Report erfolgreich exportiert nach: \"{self.report_path}\".")
 
-    # Grafiken generieren & exportieren (Zentralisiertes I/O)
-    plotter = DashboardRenderer(df_results)
-    plotter.generate_and_save_plots(plot_path)
-    logger.info(f"Visualisierungen erfolgreich exportiert nach: \"{plot_path}\".")
+            # --- PHASE 6: VISUALIZATIONS ---
+            logger.info("Schritt 6: Erzeuge explorative Analyseplots...")
+            self.dashboard = DashboardRenderer(df_results)
+            self.dashboard.generate_and_save_plots(self.plot_path)
+            logger.info(f"Visualisierungen erfolgreich exportiert nach: \"{self.plot_path}\".")
 
-    # Modell-Artefakte speichern
-    save_model_artefacts(model_path, model, scaler_path, scaler)
-    logger.info(f"Modell-Artefakte erfolgreich exportiert nach: \"{model_path}\".")
+            # --- PHASE 7: PERSISTIERUNG ---
+            logger.info("Schritt 7: Speichere Modell-Artefakte...")
+            save_model_artefacts(self.model_path, model, self.scaler_path, scaler)
+            logger.info(f"Modell-Artefakte erfolgreich exportiert nach: \"{self.model_path}\".")
+
+        # --- ROBUSTE FEHLERBEHANDLUNG ---
+        except InvalidFileFormat as e:
+            logger.error(f"Pipeline-Abbruch: Ungültiges Dateiformat erkannt -> {e}")
+        except EmptyDatasetError as e:
+            logger.error(f"Pipeline-Abbruch: Keine Daten nach der Filterung übrig -> {e}")
+        except DataValidationError as e:
+            logger.error(f"Pipeline-Abbruch: Validierungsfehler im Datenstrom -> {e}")
+        except Exception as e:
+            logger.critical(f"Unerwarteter Systemfehler: {e}", exc_info=True)
 
 if __name__ == "__main__":
-    main()
+    sentinel = ESGDataSentinel()
+    sentinel.execute_pipeline()

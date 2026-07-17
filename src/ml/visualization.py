@@ -116,7 +116,7 @@ class DashboardRenderer:
         """I/O-Schnittstelle: Ruft reine Funktionen auf und speichert die Grafiken speicherschonend."""
         # Einmalig das globale Theme für diesen Run setzen
         sns.set_theme(style="white", font="sans-serif")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.parent.mkdir(parents=True, exist_ok=True)
 
         # Zuordnung von Dateinamen zu den reinen Top-Level-Funktionen
         plots_to_create = {

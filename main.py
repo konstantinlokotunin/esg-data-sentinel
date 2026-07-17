@@ -28,15 +28,15 @@ def calculate_missing_report(df: pd.DataFrame) -> pd.DataFrame:
         "missing_percent": round(df.isna().mean() * 100, 2)
     }).sort_values("missing_values", ascending=False)
 
-class ESGDataSentinel:
+class ETLPipeline:
     """
-    Zentraler System-Orchestrator für den ETL-Prozess.
-    Baut über Komposition die Pipeline aus den spezialisierten Unterklassen auf.
+    Führt die ETL-Pipeline (inkl. Rohdatenbeschaffung, -bereinigung & -transformation) geschützt aus und
+    protokolliert jeden Teilschritt. Baut über Komposition die ETL-Pipeline aus den spezialisierten Unterklassen auf.
     """ 
     def __init__(self):
         self.base_dir = Path(__file__).parent
         self.input_file = self.base_dir / "data" / "raw" / "industrial_releases_of_pollutants_to_air.csv"
-        self.output_missing_csv = self.base_dir / "reports" / "missing_data_report.csv"
+        self.output_missing_csv = self.base_dir / "outputs" / "reports" / "missing_data_report.csv"
 
         # --- KOMPOSITION (RAG-Architektur-Style) ---
         self.loader = DataLoader(self.input_file)
@@ -88,5 +88,5 @@ class ESGDataSentinel:
         return df_transformed
 
 if __name__ == "__main__":
-    sentinel = ESGDataSentinel()
-    sentinel.execute_etl()
+    pipeline = ETLPipeline()
+    pipeline.execute_etl()
