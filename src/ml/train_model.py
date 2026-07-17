@@ -71,24 +71,3 @@ class ModelPipeline:
     
     def __repr__(self) -> str:
         return f"ModelPipeline(SelectedFeatures={len(self.feature_cols)})"
-
-        
-    
-        # 5. Vorhersagen treffen (Inferenz NUR auf den Testdaten)
-        # Isolation Forest: 1 = Normal, -1 = Anomalie
-        predictions = model.predict(X_test_normalized)
-        # Ummappen auf Standard-Binärklassifikation: 0 = Normal, 1 = Anomalie
-        predictions_mapped = [1 if x == -1 else 0 for x in predictions]
-        anomaly_scores = model.decision_function(X_test_normalized)
-
-        # Vorbereitung leerer Spalten im Haupt-DataFrame
-        self.df_transformed["Is_Anomaly"] = pd.NA
-         # Der Anomaly Score (Je negativer, desto anomaler ist der Datenpunkt)
-        self.df_transformed["Anomaly_Score"] = pd.NA
-
-        # Gezielte Zuweisung über den Index von X_test
-        self.df_transformed.loc[X_test.index, "Is_Anomaly"] = predictions_mapped
-        self.df_transformed.loc[X_test.index, "Anomaly_Score"] = anomaly_scores
-
-        df_results = self.df_transformed
-        return df_results, scaler, model

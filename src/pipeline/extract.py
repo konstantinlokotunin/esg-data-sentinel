@@ -15,7 +15,7 @@ logger = logging.getLogger("ESG-Data-Sentinel")
 
 class DataLoader:
     """Komponente zum zeilenweisen Einlesen von CSV-Dateien"""
-    
+
     def __init__(self, file_path: Path):
         self.file_path = file_path
 
@@ -56,7 +56,7 @@ class DataLoader:
                 continue
 
         if not valid_rows:
-            raise DataValidationError("Datenbeschaffung fehlgeschlagen: Es konnten keine validen Daten geladen werden.")
+            raise DataValidationError("Datenbeschaffung fehlgeschlagen: Es konnten keine gültigen Daten extrahiert werden.")
 
         # Konvertierung in ein DataFrame für die nachfolgende Transformation
         return pd.DataFrame(valid_rows)
