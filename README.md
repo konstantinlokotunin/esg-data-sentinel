@@ -1,6 +1,6 @@
-# ESG Data Sentinel Austria
+# ESG Data Sentinel
 
-Ein Machine-Learning-Projekt zur Erkennung potenzieller Datenqualitätsrisiken in österreichischen industriellen Emissionsdaten.
+Ein Machine-Learning-Projekt zur Erkennung potenzieller Datenqualitätsrisiken in industriellen Emissionsdaten.
 
 ---
 
