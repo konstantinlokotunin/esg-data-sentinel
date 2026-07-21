@@ -8,11 +8,29 @@ Analyse erfolgt komplett im Hintergrund ohne Code-Sichtbarkeit für den Anwender
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+from src.pipeline.extract import DataLoader
 from src.pipeline.cleaning import DataCleaner
 from src.ml.transform import DataTransformer
 from src.ml.train_model import ModelPipeline
 import matplotlib.pyplot as plt
 import seaborn as sns
+import logging
+
+@st.cache_resource
+def init_logger():
+    # Basis-Konfiguration für das globale Logging festlegen
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        force=True # 'force=True' überschreibt Streamlits Standard-Formatierung
+    )
+    
+    # 2. Spezifischen Logger für deine Core-Anwendung erstellen
+    return logging.getLogger("ESG_Sentinel_Core")
+
+# Logger initialisieren
+logger = init_logger()
 
 # 1. Page Configuration für ein professionelles Erscheinungsbild
 st.set_page_config(
@@ -50,3 +68,68 @@ st.markdown("<div class='main-title'>ESG Data Sentinel Austria</div>", unsafe_al
 st.markdown("<div class='sub-title'>Automatisierte Validierung und analytische Prüfungshandlungen für Nachhaltigkeitsdaten</div>", unsafe_allow_html=True)
 
 st.markdown("---")
+
+# --- FILE UPLOAD INTERFACE ---
+st.markdown("### 📥 Mandanten-Datenbasis hochladen")
+uploaded_file = st.file_uploader(
+    "Wählen Sie die Portfolio-Emissionsdatei des Kreditinstituts aus (Format: .csv)",
+    type=["csv"],
+    help="Die Datei muss die standardisierten industriellen Emissionsdaten enthalten."
+)
+
+if uploaded_file is not None:
+    with st.spinner("⏳ Analytische Prüfungsschritte werden ausgeführt (ETL & ML-Inferenz)..."):
+        try:
+            # --- PHASE 1: EXTRACTION (Generator-Streaming) ---
+            logger.info("Schritt 1: Extrahiere Rohdaten...")
+            df_raw = pd.read_csv(uploaded_file)
+            logger.info(f"Rohdaten erfolgreich geladen.")
+
+
+            # --- PHASE 2: DATA CLEANING ---
+            logger.info("Schritt 2: Führe eine Filterung und Bereinigung der Datensätze durch...")
+            cleaner = DataCleaner(df_raw)
+            df_cleaned = cleaner.clean_data()
+            logger.info(f"Daten erfolgreich bereinigt.")
+
+            # --- PHASE 3: FEATURE ENGINEERING ---
+            logger.info("Schritt 3: Führe Luftschadstoff-Klassifizierung und Feature Engineering durch...")
+            transformer = DataTransformer(df_cleaned)
+            df_transformed = transformer.transform_data()
+            logger.info(f"Schadstoff-Klassifizierung und Feature Engineering abgeschlossen.")
+
+            # --- PHASE 4: MACHINE LEARNING ---
+            logger.info("Schritt 4: Initiere Prüfungshandlungen...")
+            model_pipeline = ModelPipeline(df_transformed)
+            model, _, _, X_test = model_pipeline.train_pipeline()
+            # Isolation Forest: 1 = Normal, -1 = Anomalie
+            test_predictions = model.predict(X_test)
+            test_scores = model.decision_function(X_test)
+            df_results = df_transformed.loc[X_test.index].copy()
+            # Ummappen auf Standard-Binärklassifikation: 0 = Normal, 1 = Anomalie
+            df_results["Is_Anomaly"] = [1 if x == -1 else 0 for x in test_predictions]
+            df_results["Anomaly_Score"] = test_scores
+            st.success("✅ Prüfungshandlungen erfolgreich abgeschlossen")
+
+            # --- PHASE 5: ERGEBNIS-KPIs ---
+            total_records = len(df_results)
+            anomalies_count = int(df_results["Is_Anomaly"].sum())
+            anomaly_rate = (anomalies_count / total_records) * 100 if total_records > 0 else 0.0
+            # Drei KPI-Metriken nebeneinander platzieren
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"<div class='metric-card'><h4>Gescannte Datensätze</h4><h2 style='color:{COLOR_NAVY};'>{total_records}</h2></div>", unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"<div class='metric-card'><h4>Identifizierte Red Flags</h4><h2 style='color:{COLOR_RED};'>{anomalies_count}</h2></div>", unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"<div class='metric-card'><h4>Gesamte Fehlerquote</h4><h2 style='color:{COLOR_NAVY};'>{anomaly_rate:.2f} %</h2></div>", unsafe_allow_html=True)
+
+            st.markdown("---")
+
+        except Exception as e:
+            st.error(f"🚨 Fehler bei der automatisierten Datenvalidierung: {str(e)}")
+            st.info("Bitte überprüfen Sie, ob das Datenformat der CSRD-Schnittstellendefinition entspricht.")
+
+else:
+    # Standard-Anzeige, wenn noch keine Datei hochgeladen wurde
+    st.info("🛡️ Das System ist bereit. Bitte laden Sie eine Portfolio-Emissionsdatei hoch, um die automatisierten Vorprüfungshandlungen zu starten.")
