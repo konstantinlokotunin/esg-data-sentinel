@@ -126,6 +126,61 @@ if uploaded_file is not None:
 
             st.markdown("---")
 
+            # --- VISUALISIERUNGEN (Layout-Aufteilung) ---
+            st.markdown("### 📊 Analytische Auswertungen")
+            col_graph1, col_graph2 = st.columns(2)
+            
+            with col_graph1:
+                # Plot 1: Anomalien nach Wirtschaftssektoren
+                st.markdown("**Verteilung der Risiko-Kredite nach Sektoren**")
+                fig, ax = plt.subplots(figsize=(7, 4))
+                ax.set_facecolor("#F7FBFF")
+                anomalies_df = df_results[df_results["Is_Anomaly"] == 1]
+                if not anomalies_df.empty:
+                    sector_counts = anomalies_df.groupby("Sector").size().sort_values(ascending=False).reset_index(name="Count")
+                    sns.barplot(data=sector_counts, x="Count", y="Sector", palette="Reds_r", ax=ax)
+                    ax.set_xlabel("Anzahl Red Flags")
+                    ax.set_ylabel("")
+                    sns.despine(ax=ax)
+                    st.pyplot(fig)
+                else:
+                    st.info("Keine Anomalien im Datensatz vorhanden.")
+                plt.close(fig)
+
+            with col_graph2:
+                # Plot 2: Verteilung der Scores
+                st.markdown("**Verteilung der mathematischen Abweichungs-Scores**")
+                fig, ax = plt.subplots(figsize=(7, 4))
+                ax.set_facecolor("#F7FBFF")
+                sns.histplot(data=df_results, x="Anomaly_Score", bins=30, color="#1a73e8", ax=ax, kde=True)
+                ax.axvline(x=0, color=COLOR_RED, linestyle="--", label="Prüfschwelle")
+                ax.set_xlabel("Abweichungs-Intensität (Je negativer, desto kritischer)")
+                ax.set_ylabel("Anzahl")
+                ax.legend(frameon=False)
+                sns.despine(ax=ax)
+                st.pyplot(fig)
+                plt.close(fig)
+
+            st.markdown("---")
+
+            # --- DATA TABLE (Die konkreten Red Flags für die Prüfungsakte) ---
+            st.markdown("### 📋 Zu prüfende Einzelfälle (Identifizierte Red Flags)")
+            st.caption("Diese Datensätze weisen extreme methodische, temporale oder quantitative Inkonsistenzen auf und müssen im Rahmen des Substantive Testings mittels Einzelfallprüfung aufgearbeitet werden.")
+            
+            # Relevante Spalten für den Auditor filtern und nach Kritikalität sortieren
+            df_flags = df_results[df_results["Is_Anomaly"] == 1].sort_values("Anomaly_Score", ascending=True)
+            display_cols = ["Facility", "Sector", "Pollutant", "Year", "Amount", "YoY_Change_Pct", "Anomaly_Score"]
+            
+            st.dataframe(
+                df_flags[display_cols],
+                use_container_width=True,
+                column_config={
+                    "Amount": st.column_config.NumberColumn("Gemeldete Menge", format="%.2f"),
+                    "YoY_Change_Pct": st.column_config.NumberColumn("Vorjahresabweichung (%)", format="%.1f%%"),
+                    "Anomaly_Score": st.column_config.NumberColumn("Kritikalitäts-Score", format="%.4f")
+                }
+            )
+
         except Exception as e:
             st.error(f"🚨 Fehler bei der automatisierten Datenvalidierung: {str(e)}")
             st.info("Bitte überprüfen Sie, ob das Datenformat der CSRD-Schnittstellendefinition entspricht.")

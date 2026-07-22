@@ -16,8 +16,8 @@ def filter_and_rename_columns(df: pd.DataFrame) -> pd.DataFrame:
         "countryName": "Country",
         "reportingYear": "Year",
         "EPRTR_SectorCode": "Code",
-        "EPRTR_SectorName": "Sector",
-        "facilityName": "Facility",
+        "EPRTR_SectorName": "NACE_Sector",
+        "facilityName": "Borrower_ID",
         "Pollutant": "Pollutant",
         "Releases": "Amount",
     }
